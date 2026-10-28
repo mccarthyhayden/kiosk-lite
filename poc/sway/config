@@ -12,7 +12,7 @@ gaps outer 0
 focus_follows_mouse no
 mouse_warping none
 
-output * bg "#000000" solid
+output * bg "#000000" solid_color
 seat * hide_cursor 3000
 
 for_window [app_id="^chromium"] floating enable, border none
