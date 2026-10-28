@@ -1,6 +1,7 @@
 #!/bin/sh
 # Open two chromeless Chromium windows and mark them for place.sh.
-# Prefers one profile. Uses a second profile only if the second window never appears.
+# Each page gets its own profile. On this Pi 4, one shared profile did not
+# open a second window, and the TV's HDMI link comes up after Sway starts.
 
 set -u
 export LC_ALL=C
@@ -9,13 +10,12 @@ poc_bin=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/kiosk-lite
 data_dir=${XDG_DATA_HOME:-"$HOME/.local/share"}/kiosk-lite
 profile=$data_dir/chromium
-profile_fallback=$data_dir/chromium-2
+profile_right=$data_dir/chromium-2
 log=$state_dir/chromium.log
 report=$state_dir/last-run.txt
 left_url=${KIOSK_LEFT_URL:-https://example.com}
 right_url=${KIOSK_RIGHT_URL:-https://example.org}
-profile_model=shared
-tmp=
+profile_model=separate
 created_lock=0
 keep_lock=0
 
@@ -27,9 +27,6 @@ fi
 lock=$XDG_RUNTIME_DIR/kiosk-lite-proof.lock
 
 cleanup() {
-    if [ -n "$tmp" ]; then
-        rm -rf "$tmp"
-    fi
     if [ "$created_lock" -eq 1 ] && [ "$keep_lock" -eq 0 ]; then
         rmdir "$lock" 2>/dev/null || true
     fi
@@ -55,6 +52,10 @@ report_line() {
     printf '%s\n' "$*" | tee -a "$report"
 }
 
+host_of() {
+    printf '%s\n' "$1" | sed -e 's|^[a-zA-Z][a-zA-Z0-9+.-]*://||' -e 's|/.*||' -e 's|:.*||'
+}
+
 if ! swaymsg -t get_version >/dev/null 2>&1; then
     report_line "FAIL Sway is not running, so Chromium has no Wayland display."
     exit 1
@@ -68,38 +69,6 @@ else
     report_line "FAIL chromium is not installed."
     exit 1
 fi
-
-container_ids() {
-    swaymsg -t get_tree | jq -r '
-        .. | objects
-        | select(.type == "con" and .app_id != null and .app_id != "")
-        | .id
-    ' | sort
-}
-
-wait_for_new() {
-    before=$1
-    work=$2
-    i=0
-    while [ "$i" -lt 60 ]; do
-        now=$(container_ids) || return 1
-        printf '%s\n' "$before" | sed '/^$/d' | sort > "$work/before"
-        printf '%s\n' "$now" | sed '/^$/d' | sort > "$work/now"
-        new=$(comm -13 "$work/before" "$work/now")
-        count=$(printf '%s\n' "$new" | sed '/^$/d' | wc -l | tr -d ' ')
-        if [ "$count" -eq 1 ]; then
-            printf '%s\n' "$new" | sed '/^$/d'
-            return 0
-        fi
-        if [ "$count" -gt 1 ]; then
-            log_line "more than one new window: $(printf '%s' "$new" | tr '\n' ' ')"
-            return 2
-        fi
-        i=$((i + 1))
-        sleep 1
-    done
-    return 1
-}
 
 start_chromium() {
     url=$1
@@ -126,31 +95,93 @@ start_chromium() {
 mark_window() {
     id=$1
     name=$2
-    swaymsg "[con_id=$id] mark $name, floating enable, border none" >>"$log" 2>&1
+    swaymsg "[con_id=$id] mark --replace $name, fullscreen disable, floating enable, border none" >>"$log" 2>&1
+}
+
+# The VIZIO link is often still down when Sway runs this script.
+wait_for_output() {
+    i=0
+    while [ "$i" -lt 90 ]; do
+        json=$(swaymsg -t get_outputs 2>/dev/null || true)
+        name=$(printf '%s' "$json" | jq -r '[.[] | select(.active == true)][0].name // empty' 2>/dev/null || true)
+        if [ -n "$name" ]; then
+            printf '%s\n' "$json"
+            return 0
+        fi
+        i=$((i + 1))
+        sleep 1
+    done
+    return 1
 }
 
 prepare_output() {
-    json=$(swaymsg -t get_outputs)
-    name=$(printf '%s' "$json" | jq -r '[.[] | select(.active == true)][0].name // empty')
-    if [ -z "$name" ]; then
-        report_line "FAIL no active display output."
+    json=$(wait_for_output) || {
+        report_line "FAIL no active display output after waiting."
         return 1
-    fi
+    }
+    name=$(printf '%s' "$json" | jq -r '[.[] | select(.active == true)][0].name // empty')
     has_1080=$(printf '%s' "$json" | jq -r --arg n "$name" '
         .[] | select(.name == $n) | .modes[]?
         | select(.width == 1920 and .height == 1080)
         | "yes"
     ' | head -n 1)
-    if [ "$has_1080" = "yes" ]; then
-        if swaymsg "output \"$name\" mode 1920x1080" >>"$log" 2>&1; then
-            log_line "requested 1920x1080 on $name"
-            sleep 1
-        else
-            report_line "WARN could not set 1920x1080 on $name"
-        fi
-    else
+    if [ "$has_1080" != "yes" ]; then
         report_line "NOTE $name has no 1920x1080 mode; keeping the current mode"
+        return 0
     fi
+    if ! swaymsg "output \"$name\" mode 1920x1080" >>"$log" 2>&1; then
+        report_line "WARN could not set 1920x1080 on $name"
+        return 0
+    fi
+    log_line "requested 1920x1080 on $name"
+    i=0
+    while [ "$i" -lt 15 ]; do
+        width=$(swaymsg -t get_outputs | jq -r --arg n "$name" '
+            .[] | select(.name == $n) | .rect.width // empty
+        ')
+        if [ "$width" = "1920" ]; then
+            sleep 1
+            return 0
+        fi
+        i=$((i + 1))
+        sleep 1
+    done
+    report_line "WARN $name did not report 1920px after the mode change"
+}
+
+window_id_for() {
+    needle=$1
+    swaymsg -t get_tree | jq -r --arg needle "$needle" '
+        first(
+            .. | objects
+            | select(.app_id != null and (.app_id | startswith($needle)))
+            | .id
+        ) // empty
+    '
+}
+
+wait_for_windows() {
+    left_needle=$1
+    right_needle=$2
+    i=0
+    left_id=
+    right_id=
+    while [ "$i" -lt 180 ]; do
+        if [ -z "$left_id" ]; then
+            left_id=$(window_id_for "$left_needle")
+        fi
+        if [ -z "$right_id" ]; then
+            right_id=$(window_id_for "$right_needle")
+        fi
+        if [ -n "$left_id" ] && [ -n "$right_id" ]; then
+            printf '%s %s\n' "$left_id" "$right_id"
+            return 0
+        fi
+        i=$((i + 1))
+        sleep 1
+    done
+    log_line "timeout left=${left_id:-missing} right=${right_id:-missing}"
+    return 1
 }
 
 field_for_mark() {
@@ -163,60 +194,34 @@ field_for_mark() {
     ' | head -n 1
 }
 
-tmp=$(mktemp -d) || exit 1
 log_line "---- $(date -Is) ----"
 
 if ! prepare_output; then
     exit 1
 fi
 
-before=$(container_ids)
 start_chromium "$left_url" "$profile"
-left_id=$(wait_for_new "$before" "$tmp")
-rc=$?
-if [ "$rc" -ne 0 ]; then
-    if [ "$rc" -eq 2 ]; then
-        report_line "FAIL more than one window appeared for the left page."
-    else
-        report_line "FAIL the first Chromium window did not appear."
-    fi
+start_chromium "$right_url" "$profile_right"
+
+left_needle=$(printf 'chrome-%s' "$(host_of "$left_url")")
+right_needle=$(printf 'chrome-%s' "$(host_of "$right_url")")
+ids=$(wait_for_windows "$left_needle" "$right_needle") || {
+    report_line "FAIL a Chromium window did not appear within 180 seconds."
     report_line "See $log"
     exit 1
-fi
+}
+left_id=${ids%% *}
+right_id=${ids#* }
+
 if ! mark_window "$left_id" kiosk-left; then
     report_line "FAIL could not mark the left window $left_id"
     exit 1
-fi
-log_line "marked kiosk-left con_id=$left_id"
-
-before=$(container_ids)
-start_chromium "$right_url" "$profile"
-right_id=$(wait_for_new "$before" "$tmp")
-rc=$?
-if [ "$rc" -eq 2 ]; then
-    report_line "FAIL more than one window appeared for the right page."
-    report_line "See $log"
-    exit 1
-fi
-if [ "$rc" -ne 0 ]; then
-    log_line "shared profile did not open a second window"
-    report_line "NOTE shared profile did not open a second window. Using a separate profile."
-    profile_model=separate
-    before=$(container_ids)
-    start_chromium "$right_url" "$profile_fallback"
-    right_id=$(wait_for_new "$before" "$tmp")
-    rc=$?
-    if [ "$rc" -ne 0 ]; then
-        report_line "FAIL the second Chromium window did not appear."
-        report_line "See $log"
-        exit 1
-    fi
 fi
 if ! mark_window "$right_id" kiosk-right; then
     report_line "FAIL could not mark the right window $right_id"
     exit 1
 fi
-log_line "marked kiosk-right con_id=$right_id"
+log_line "marked kiosk-left con_id=$left_id kiosk-right con_id=$right_id"
 
 place_out=$(sh "$poc_bin/place.sh" 2>>"$log")
 rc=$?

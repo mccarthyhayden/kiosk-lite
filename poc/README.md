@@ -69,11 +69,11 @@ If Sway exits immediately, read the message on the console. Do not install a des
 `session.sh` starts Sway, which runs `launch.sh`.
 
 1. If the connected display lists 1920x1080, Sway switches to that mode. Otherwise the current mode is kept and recorded.
-2. One Chromium process opens `https://example.com` in `--app` mode, using `~/.local/share/kiosk-lite/chromium`.
-3. The same profile is asked to open `https://example.org`.
-4. If that does not create a second window, the right page is opened with `~/.local/share/kiosk-lite/chromium-2` instead.
-5. Each new Sway container is marked `kiosk-left` or `kiosk-right`.
-6. `place.sh` sizes them to about 70% and 30% of the active output.
+2. The script waits up to 90 seconds for the TV to finish the HDMI handshake, then requests 1920x1080 when that mode is listed.
+3. Chromium opens `https://example.com` from `~/.local/share/kiosk-lite/chromium` and `https://example.org` from `~/.local/share/kiosk-lite/chromium-2`. On the Pi 4, one shared profile did not create a second window.
+4. The script waits up to 180 seconds for both windows. A cold Chromium start on this board can take longer than a minute.
+5. Each window is marked `kiosk-left` or `kiosk-right`.
+6. `place.sh` turns fullscreen off and sizes them to about 70% and 30% of the active output. Until that runs, both pages sit on top of each other at Chromium's default size.
 
 Chromium is not started with `--kiosk`, `--no-sandbox`, `--class`, `--window-position`, or `--window-size`. Wayland clients do not place themselves. `--password-store=basic` avoids a keyring prompt that Lite cannot answer.
 

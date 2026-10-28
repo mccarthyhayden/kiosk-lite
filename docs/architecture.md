@@ -49,27 +49,10 @@ Refreshing one page, recovering a crash, and persisting a login are Phase 2 and 
 
 ## Hardware results
 
-Not run from this workspace. This tree cannot open the Pi 4's display.
+Run on the Pi 4 kiosk (`nxcmfg-kiosk`), Raspberry Pi OS Lite, user `kiosk-user`, TV VIZIO E65-E3 on HDMI-A-1.
 
-After a console run, copy `~/.local/state/kiosk-lite/last-run.txt` over the pending lines. Do not treat the proof as signed off while they stay pending.
+Sway from apt opened the display. The labwc stop-gate was not hit. Console autologin on tty1 starts `session.sh`, which stays up across the test. The output settled at 1920x1080 after the script requested that mode. The TV's own preferred mode is 3840x2160 at 30 Hz, and that link is not active yet when Sway first starts.
 
-```text
-time: pending
-model: pending
-browser: pending
-sway: pending
-output mode: pending
-profile_model: pending
-same_pid: pending
-left: pending
-right: pending
-memory: pending
-```
+Two Chromium `--app` windows were shown together and then placed by hand at 1344x1080 and 576x1080. Their Wayland ids were `chrome-example.com__-Default` and `chrome-example.org__-Default`, from two profile directories. One shared profile was not proven. Both pages use the same sentence, and both open at Chromium's default centered size, so until placement they look like one window stacked on another.
 
-How to read the process result:
-
-- `profile_model=shared` and `same_pid=yes` means one Chromium process was enough to identify and place both windows.
-- `profile_model=shared` and `same_pid=no` means both pages shared a profile, but Sway reported different process ids. Keep the shared profile and record the ids before deciding that separate processes are required.
-- `profile_model=separate` means the shared profile never opened a second window. The right page used `chromium-2`. That result is the reason to prefer one process per window in Phase 2.
-
-Also record whether Sway from apt opened the DRM device, or whether the labwc stop-gate was hit. The stop-gate is a failed Sway start. It is not a desktop install.
+`launch.sh` now waits for the HDMI link, starts those two profiles, waits up to three minutes for both windows, and applies the 70/30 split. A reboot uses the existing tty1 autologin. The updated scripts have to be on the Pi before that reboot.

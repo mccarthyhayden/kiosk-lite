@@ -37,7 +37,7 @@ place_one() {
     py=$3
     w=$4
     h=$5
-    swaymsg "[con_mark=\"$mark\"] floating enable, border none, resize set $w $h, move absolute position $px $py"
+    swaymsg "[con_mark=\"$mark\"] fullscreen disable, floating enable, border none, resize set $w $h, move absolute position $px $py"
 }
 
 if ! place_one kiosk-left "$origin_x" "$origin_y" "$left_w" "$height"; then
