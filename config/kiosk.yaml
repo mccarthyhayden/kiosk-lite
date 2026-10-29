@@ -1,0 +1,30 @@
+version: 1
+display:
+  mode: 1920x1080
+login:
+  password_file: ~/.config/kiosk-lite/odoo-login
+panes:
+  - id: lead_times
+    url: https://odoo.nxcmfg.com/web#dashboard_id=25&cids=1&action=1498&menu_id=756
+    x: 0
+    y: 0
+    width: 640
+    height: 540
+  - id: production_schedule
+    url: https://odoo.nxcmfg.com/web#action=1830&model=print.job&view_type=gantt&cids=1&menu_id=969
+    x: 640
+    y: 0
+    width: 1280
+    height: 540
+  - id: meeting_notes
+    url: https://odoo.nxcmfg.com/meeting-notes/production-meeting/tv
+    x: 0
+    y: 540
+    width: 640
+    height: 540
+  - id: dashboard
+    url: https://odoo.nxcmfg.com/web#dashboard_id=24&cids=1&menu_id=756&action=1498
+    x: 640
+    y: 540
+    width: 1280
+    height: 540

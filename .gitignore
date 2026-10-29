@@ -1,0 +1,3 @@
+config/odoo-login
+*.pyc
+__pycache__/

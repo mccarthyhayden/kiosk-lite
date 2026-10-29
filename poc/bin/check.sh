@@ -113,7 +113,14 @@ else
     missing_packages=1
 fi
 
-for cmd in sway swaymsg jq; do
+if dpkg -s python3-yaml >/dev/null 2>&1; then
+    pass "package python3-yaml"
+else
+    fail "package python3-yaml is not installed"
+    missing_packages=1
+fi
+
+for cmd in sway swaymsg jq python3; do
     if command -v "$cmd" >/dev/null 2>&1; then
         pass "command $cmd"
     else
@@ -156,7 +163,7 @@ fi
 if [ "$missing_packages" -eq 1 ]; then
     printf '\nInstall only:\n'
     printf '  sudo apt update\n'
-    printf '  sudo apt install --no-install-recommends sway chromium fonts-liberation jq dbus-user-session\n'
+    printf '  sudo apt install --no-install-recommends sway chromium fonts-liberation jq dbus-user-session python3-yaml\n'
     printf 'If the chromium package name is rejected, install chromium-browser instead.\n'
     printf 'Do not install rpd-wayland-core, raspberrypi-ui-mods, lightdm, greetd, or a panel.\n'
 fi

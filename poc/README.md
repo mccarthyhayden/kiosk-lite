@@ -1,6 +1,6 @@
-# Phase 1 proof
+# Shop-floor layout
 
-This directory proves that Raspberry Pi OS Lite can show two chromeless Chromium windows side by side without a desktop. The test machine is a Raspberry Pi 4 with 4 GB of RAM and the 64-bit CLI image.
+Phase 1 showed two chromeless Chromium windows on Raspberry Pi OS Lite without a desktop. This directory now opens the four Odoo panes in `config/kiosk.yaml`. The test machine is a Raspberry Pi 4 with 4 GB of RAM and the 64-bit CLI image.
 
 Run the dependency check over SSH. Start Sway from the console on tty1. SSH cannot open the display.
 
@@ -15,7 +15,8 @@ sudo apt install --no-install-recommends \
   chromium \
   fonts-liberation \
   jq \
-  dbus-user-session
+  dbus-user-session \
+  python3-yaml
 ```
 
 If `chromium` is not the package name on that image, install `chromium-browser` instead.
@@ -64,24 +65,33 @@ Reboot. tty1 should start Sway: a black screen, no panel, and the pointer hidden
 
 If Sway exits immediately, read the message on the console. Do not install a desktop. If it could not open the DRM device, stop and switch this proof to labwc.
 
-## What appears
+## Odoo password
 
-`session.sh` starts Sway, which runs `launch.sh`.
-
-1. If the connected display lists 1920x1080, Sway switches to that mode. Otherwise the current mode is kept and recorded.
-2. The script waits up to 90 seconds for the TV to finish the HDMI handshake, then requests 1920x1080 when that mode is listed.
-3. Chromium opens `https://example.com` from `~/.local/share/kiosk-lite/chromium` and `https://example.org` from `~/.local/share/kiosk-lite/chromium-2`. On the Pi 4, one shared profile did not create a second window.
-4. The script waits up to 180 seconds for both windows. A cold Chromium start on this board can take longer than a minute.
-5. Each window is marked `kiosk-left` or `kiosk-right`.
-6. `place.sh` turns fullscreen off and sizes them to about 70% and 30% of the active output. Until that runs, both pages sit on top of each other at Chromium's default size.
-
-Chromium is not started with `--kiosk`, `--no-sandbox`, `--class`, `--window-position`, or `--window-size`. Wayland clients do not place themselves. `--password-store=basic` avoids a keyring prompt that Lite cannot answer.
-
-Override the pages for a later trial:
+The password is not in git and should not be pasted into chat. On the Pi, as `kiosk-user`:
 
 ```sh
-KIOSK_LEFT_URL=https://example.com KIOSK_RIGHT_URL=https://example.org
+mkdir -p ~/.config/kiosk-lite
+cp "$HOME/kiosk-lite/config/odoo-login.example" ~/.config/kiosk-lite/odoo-login
+chmod 600 ~/.config/kiosk-lite/odoo-login
 ```
+
+Edit that file so `username=` and `password=` are the Odoo web login. The launcher reads it only when a pane is on the Odoo login page. A normal boot uses the cookies already in the profile. If the account asks for a second factor, the TV shows that challenge. `wayvnc` from another computer can finish it, and it stays off during normal display.
+
+If the file is missing, the four panes still open and the report says the login file is missing.
+
+## What appears
+
+`session.sh` starts Sway, which runs `launch.sh`. That script starts the Python layout.
+
+1. The program waits up to 90 seconds for the TV to finish the HDMI handshake, then requests 1920x1080 when that mode is listed.
+2. One Chromium window opens the first pane. If Odoo shows the login form, the password file is submitted. The browser is then closed.
+3. That profile is copied to one directory per pane. Two Chromium processes never share a directory.
+4. The panes start one at a time. Each waits up to 180 seconds for its own new Sway window. All four URLs are on `odoo.nxcmfg.com`, so the app id is the same for each and cannot be used to tell them apart.
+5. Each window is marked `kiosk-<pane-id>`, fullscreen is turned off, and the rectangle from `config/kiosk.yaml` is applied. Until that runs, a new page sits at Chromium's default size.
+
+The starting rectangles are 640x540, 1280x540, 640x540, and 1280x540. Change them in the YAML after looking at the TV.
+
+Chromium is not started with `--kiosk`, `--no-sandbox`, `--class`, `--window-position`, or `--window-size`. Wayland clients do not place themselves. `--password-store=basic` avoids a keyring prompt that Lite cannot answer.
 
 ## Restore the layout
 
@@ -101,14 +111,14 @@ cat ~/.local/state/kiosk-lite/chromium.log
 
 Copy `last-run.txt` into the hardware results section of `docs/architecture.md`.
 
-`profile_model=shared` means the second page used the first Chromium profile. `same_pid=yes` means Sway saw one process id for both windows. `profile_model=separate` means the shared profile did not create a second window and the fallback profile was used.
+`profile_model=separate` means each pane has its own profile directory. `same_pid=yes` means Sway saw one process id for more than one pane. `login_file=missing` means the password file was not on the Pi. The report does not contain the password.
 
-To launch again in the same login session, exit Sway or remove `$XDG_RUNTIME_DIR/kiosk-lite-proof.lock`, then run `sh poc/bin/launch.sh` with `SWAYSOCK` set.
+To launch again in the same login session, exit Sway or remove `$XDG_RUNTIME_DIR/kiosk-lite.lock`, then run `sh poc/bin/launch.sh` with `SWAYSOCK` set. Quit any Chromium that is still using those profile directories first.
 
 ## Pass
 
 - `check.sh` exits 0.
-- Two pages are visible at once, without an address bar or a desktop panel.
-- The left page is about 70% of the width and the right page is the rest, both full height.
+- Four Odoo panes are visible at once, without an address bar or a desktop panel.
+- They sit on the rectangles in `config/kiosk.yaml`.
 - Running `place.sh` again puts them back after a focus change.
-- `last-run.txt` records the output mode, the profile model, both window ids, and `free -h`.
+- `last-run.txt` records the output mode, the profile model, each pane, and `free -h`, and does not contain the password.
