@@ -94,6 +94,7 @@ class LayoutFileTest(unittest.TestCase):
     def test_navbar_css_targets_the_web_client_bar(self) -> None:
         self.assertIn(".o_main_navbar", HIDE_NAVBAR_CSS)
         self.assertIn(".o_navbar", HIDE_NAVBAR_CSS)
+        self.assertIn(".o_control_panel", HIDE_NAVBAR_CSS)
         self.assertNotIn("password", CHROME_SCRIPT)
         self.assertIn("kiosk-lite-chrome", CHROME_SCRIPT)
 

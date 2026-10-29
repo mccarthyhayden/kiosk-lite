@@ -4,18 +4,24 @@ from __future__ import annotations
 
 from kiosk_lite.cdp import Cdp, CdpError
 
-# The Odoo web client draws this bar on /web. A standalone page such as the
-# meeting-notes TV view has no element with these classes, so it is unchanged.
+# The Odoo web client draws a navbar and a control panel on /web. The control
+# panel is the "Dashboards" title, and on the gantt it is the New button and
+# search bar. A standalone page such as the meeting-notes TV view has none of
+# these elements, so it is unchanged.
 HIDE_NAVBAR_CSS = """
 .o_navbar,
-.o_main_navbar {
+.o_main_navbar,
+.o_control_panel {
   display: none !important;
 }
-.o_web_client {
+.o_web_client,
+.o_action,
+.o_view_controller,
+.o_content {
   height: 100% !important;
 }
-.o_action_manager {
-  height: 100% !important;
+.o_action_manager,
+.o_content {
   flex: 1 1 auto !important;
 }
 """
