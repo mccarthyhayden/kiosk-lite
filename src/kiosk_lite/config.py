@@ -15,6 +15,7 @@ class Pane:
     width: int
     height: int
     hide_navbar: bool = True
+    refresh_seconds: int = 300
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,7 @@ def load_layout(path: str) -> Layout:
     display = raw.get("display") or {}
     login = raw.get("login") or {}
     mode = str(display.get("mode") or "1920x1080")
+    refresh_seconds = _refresh_seconds(display.get("refresh_seconds", 300), "display")
     password_file = os.path.expanduser(str(login.get("password_file") or ""))
     panes_raw = raw.get("panes") or []
     if not panes_raw:
@@ -55,6 +57,7 @@ def load_layout(path: str) -> Layout:
         hide_navbar = item.get("hide_navbar", True)
         if not isinstance(hide_navbar, bool):
             raise ValueError(f"{item.get('id', 'pane')} hide_navbar must be true or false")
+        pane_refresh = item.get("refresh_seconds", refresh_seconds)
         pane = Pane(
             id=str(item["id"]),
             url=str(item["url"]),
@@ -63,6 +66,7 @@ def load_layout(path: str) -> Layout:
             width=int(item["width"]),
             height=int(item["height"]),
             hide_navbar=hide_navbar,
+            refresh_seconds=_refresh_seconds(pane_refresh, str(item.get("id", "pane"))),
         )
         if pane.id in seen:
             raise ValueError(f"duplicate pane id {pane.id}")
@@ -73,6 +77,12 @@ def load_layout(path: str) -> Layout:
         seen.add(pane.id)
         panes.append(pane)
     return Layout(mode=mode, password_file=password_file, panes=tuple(panes))
+
+
+def _refresh_seconds(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{label} refresh_seconds must be a whole number of seconds, or 0 to disable")
+    return value
 
 
 def load_login(path: str) -> Login | None:

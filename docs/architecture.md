@@ -40,7 +40,7 @@ All four shop-floor URLs are on `odoo.nxcmfg.com`, so every pane gets the same a
 Still out of this slice:
 
 - Live reload of the YAML file
-- Refreshing a single page on a timer, and any browser extension
+- A browser extension
 - systemd user or system units, boot ordering, and crash recovery
 - Display blanking beyond Sway's `hide_cursor`, and cursor policy as a product setting
 - Percentage layouts, extra monitors, and portrait orientation
@@ -48,7 +48,7 @@ Still out of this slice:
 - GPU flags and 4K measurement
 - labwc, unless Sway fails the tty1 checkpoint
 
-The pane list is `config/kiosk.yaml`. The Odoo password stays in the Pi-local file described above. An Odoo API key does not sign in these web pages.
+The pane list is `config/kiosk.yaml`. `display.refresh_seconds` reloads each pane on that interval (300 is 5 minutes; 0 disables it). A pane's own `refresh_seconds` overrides the display value. The Odoo password stays in the Pi-local file described above. An Odoo API key does not sign in these web pages.
 
 ## Hardware results
 

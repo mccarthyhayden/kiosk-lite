@@ -30,10 +30,52 @@ class LayoutFileTest(unittest.TestCase):
         for pane in layout.panes:
             self.assertTrue(pane.url.startswith("https://odoo.nxcmfg.com/"))
             self.assertTrue(pane.hide_navbar)
+            self.assertEqual(pane.refresh_seconds, 300)
+        self.assertEqual(layout.panes[0].refresh_seconds, 300)
         with open(CONFIG, encoding="utf-8") as handle:
             text = handle.read()
         self.assertNotIn("password:", text)
         self.assertNotIn("password=", text)
+
+    def test_refresh_override_and_disable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "kiosk.yaml")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(
+                    "display:\n"
+                    "  refresh_seconds: 120\n"
+                    "panes:\n"
+                    "  - id: one\n"
+                    "    url: https://odoo.nxcmfg.com/web\n"
+                    "    x: 0\n"
+                    "    y: 0\n"
+                    "    width: 10\n"
+                    "    height: 10\n"
+                    "  - id: two\n"
+                    "    url: https://odoo.nxcmfg.com/web\n"
+                    "    x: 0\n"
+                    "    y: 0\n"
+                    "    width: 10\n"
+                    "    height: 10\n"
+                    "    refresh_seconds: 0\n"
+                )
+            layout = load_layout(path)
+            self.assertEqual(layout.panes[0].refresh_seconds, 120)
+            self.assertEqual(layout.panes[1].refresh_seconds, 0)
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(
+                    "display:\n"
+                    "  refresh_seconds: -1\n"
+                    "panes:\n"
+                    "  - id: one\n"
+                    "    url: https://odoo.nxcmfg.com/web\n"
+                    "    x: 0\n"
+                    "    y: 0\n"
+                    "    width: 10\n"
+                    "    height: 10\n"
+                )
+            with self.assertRaises(ValueError):
+                load_layout(path)
 
     def test_login_file_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

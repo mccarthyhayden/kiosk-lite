@@ -51,6 +51,8 @@ class RunningPane:
     rect: str
     hide_navbar: bool = True
     chrome_registered: bool = False
+    refresh_seconds: int = 300
+    next_refresh: float = 0.0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -247,6 +249,8 @@ def _launch_panes(layout: Layout, binary: str) -> list[RunningPane]:
                 pid=int(placed.get("pid") or 0),
                 rect=f"{rect.get('x', pane.x)},{rect.get('y', pane.y)} {rect.get('width', pane.width)}x{rect.get('height', pane.height)}",
                 hide_navbar=pane.hide_navbar,
+                refresh_seconds=pane.refresh_seconds,
+                next_refresh=time.time() + pane.refresh_seconds + index * 20,
             )
         )
         _apply_chrome_soon(running[-1])
@@ -292,6 +296,7 @@ def _watch(layout: Layout, login: Login | None, running: list[RunningPane], bina
     while True:
         time.sleep(30)
         _apply_chrome(running)
+        _reload_due_panes(running)
         if time.time() < quiet_until:
             continue
         current = login
@@ -347,6 +352,28 @@ def _pane_on_password_form(running: list[RunningPane]) -> RunningPane | None:
     return None
 
 
+def _reload_due_panes(running: list[RunningPane]) -> None:
+    """Reload each pane on its own interval. The login page is left alone."""
+    now = time.time()
+    for pane in running:
+        if pane.refresh_seconds <= 0 or now < pane.next_refresh:
+            continue
+        pane.next_refresh = now + pane.refresh_seconds
+        try:
+            cdp = Cdp(pane.port)
+            cdp.connect_page()
+            try:
+                href = page_url(cdp)
+                if not href or href.startswith(("about:", "chrome:")) or is_login_url(href):
+                    continue
+                cdp.call("Page.reload", {"ignoreCache": False})
+            finally:
+                cdp.close()
+        except (CdpError, OSError):
+            continue
+        _note(f"refreshed {pane.pane_id}")
+
+
 def _refresh_session(layout: Layout, binary: str, source: RunningPane, running: list[RunningPane]) -> list[RunningPane]:
     """Close every pane, then copy the signed-in profile before starting again."""
     for pane in running:
@@ -378,7 +405,7 @@ def _report(output: dict, mode_set: bool, binary: str, login: Login | None, seed
     ]
     for pane in running:
         lines.append(
-            f"{pane.pane_id} con_id={pane.con_id} app_id={pane.app_id} pid={pane.pid} rect={pane.rect}"
+            f"{pane.pane_id} con_id={pane.con_id} app_id={pane.app_id} pid={pane.pid} rect={pane.rect} refresh_seconds={pane.refresh_seconds}"
         )
     lines.append("memory:")
     lines.append(_memory())

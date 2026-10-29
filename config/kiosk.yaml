@@ -1,6 +1,9 @@
 version: 1
 display:
   mode: 1920x1080
+  # Reload each pane this often. 300 is 5 minutes. 0 disables refresh.
+  # A pane can set its own refresh_seconds to override this.
+  refresh_seconds: 300
 login:
   password_file: ~/.config/kiosk-lite/odoo-login
 panes:
