@@ -88,6 +88,7 @@ If the file is missing, the four panes still open and the report says the login 
 3. That profile is copied to one directory per pane. Two Chromium processes never share a directory.
 4. The panes start one at a time. Each waits up to 180 seconds for its own new Sway window. All four URLs are on `odoo.nxcmfg.com`, so the app id is the same for each and cannot be used to tell them apart.
 5. Each window is marked `kiosk-<pane-id>`, fullscreen is turned off, and the rectangle from `config/kiosk.yaml` is applied. Until that runs, a new page sits at Chromium's default size.
+6. Panes with `hide_navbar: true` lose the Odoo web-client bar. The meeting-notes page has no such bar, so it looks the same. Set `hide_navbar: false` on a pane to keep the bar.
 
 The starting rectangles are 640x540, 1280x540, 640x540, and 1280x540. Change them in the YAML after looking at the TV.
 

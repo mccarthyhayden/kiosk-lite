@@ -22,6 +22,7 @@ from kiosk_lite.browser import (
 from kiosk_lite.cdp import Cdp, CdpError
 from kiosk_lite.config import Layout, Login, load_layout, load_login, login_file_is_private
 from kiosk_lite.login import is_login_url, login_stage, page_url, submit_login
+from kiosk_lite.page import install_chrome
 from kiosk_lite.sway import (
     SwayError,
     app_windows,
@@ -48,6 +49,8 @@ class RunningPane:
     app_id: str
     pid: int
     rect: str
+    hide_navbar: bool = True
+    chrome_registered: bool = False
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -243,9 +246,39 @@ def _launch_panes(layout: Layout, binary: str) -> list[RunningPane]:
                 app_id=str(placed.get("app_id") or ""),
                 pid=int(placed.get("pid") or 0),
                 rect=f"{rect.get('x', pane.x)},{rect.get('y', pane.y)} {rect.get('width', pane.width)}x{rect.get('height', pane.height)}",
+                hide_navbar=pane.hide_navbar,
             )
         )
+        _apply_chrome_soon(running[-1])
     return running
+
+
+def _apply_chrome(running: list[RunningPane]) -> None:
+    for pane in running:
+        if pane.hide_navbar:
+            _apply_chrome_soon(pane, timeout=5)
+
+
+def _apply_chrome_soon(pane: RunningPane, timeout: float = 20) -> None:
+    """Hide the navbar once the document exists. A page without one is left as it is."""
+    if not pane.hide_navbar:
+        return
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            cdp = Cdp(pane.port)
+            cdp.connect_page()
+            try:
+                href = page_url(cdp)
+                if href and not href.startswith(("about:", "chrome:")):
+                    install_chrome(cdp, register=not pane.chrome_registered)
+                    pane.chrome_registered = True
+                    return
+            finally:
+                cdp.close()
+        except (CdpError, OSError):
+            pass
+        time.sleep(1)
 
 
 def _watch(layout: Layout, login: Login | None, running: list[RunningPane], binary: str) -> None:
@@ -258,6 +291,7 @@ def _watch(layout: Layout, login: Login | None, running: list[RunningPane], bina
     quiet_until = 0.0
     while True:
         time.sleep(30)
+        _apply_chrome(running)
         if time.time() < quiet_until:
             continue
         current = login

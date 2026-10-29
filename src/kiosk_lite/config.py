@@ -14,6 +14,7 @@ class Pane:
     y: int
     width: int
     height: int
+    hide_navbar: bool = True
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,9 @@ def load_layout(path: str) -> Layout:
     panes: list[Pane] = []
     seen: set[str] = set()
     for item in panes_raw:
+        hide_navbar = item.get("hide_navbar", True)
+        if not isinstance(hide_navbar, bool):
+            raise ValueError(f"{item.get('id', 'pane')} hide_navbar must be true or false")
         pane = Pane(
             id=str(item["id"]),
             url=str(item["url"]),
@@ -58,6 +62,7 @@ def load_layout(path: str) -> Layout:
             y=int(item["y"]),
             width=int(item["width"]),
             height=int(item["height"]),
+            hide_navbar=hide_navbar,
         )
         if pane.id in seen:
             raise ValueError(f"duplicate pane id {pane.id}")

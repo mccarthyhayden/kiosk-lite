@@ -9,6 +9,7 @@ from kiosk_lite.cdp import _recv_text, _send_text
 from kiosk_lite.config import Login, load_layout, load_login
 from kiosk_lite.layout import RunningPane, _report
 from kiosk_lite.login import is_login_url
+from kiosk_lite.page import CHROME_SCRIPT, HIDE_NAVBAR_CSS
 
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -28,6 +29,7 @@ class LayoutFileTest(unittest.TestCase):
         )
         for pane in layout.panes:
             self.assertTrue(pane.url.startswith("https://odoo.nxcmfg.com/"))
+            self.assertTrue(pane.hide_navbar)
         with open(CONFIG, encoding="utf-8") as handle:
             text = handle.read()
         self.assertNotIn("password:", text)
@@ -46,6 +48,12 @@ class LayoutFileTest(unittest.TestCase):
 
     def test_missing_login_file(self) -> None:
         self.assertIsNone(load_login(os.path.join(tempfile.gettempdir(), "missing-odoo-login")))
+
+    def test_navbar_css_targets_the_web_client_bar(self) -> None:
+        self.assertIn(".o_main_navbar", HIDE_NAVBAR_CSS)
+        self.assertIn(".o_navbar", HIDE_NAVBAR_CSS)
+        self.assertNotIn("password", CHROME_SCRIPT)
+        self.assertIn("kiosk-lite-chrome", CHROME_SCRIPT)
 
     def test_login_urls(self) -> None:
         self.assertTrue(is_login_url("https://odoo.nxcmfg.com/web/login"))
