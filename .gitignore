@@ -1,3 +1,4 @@
 config/odoo-login
+config/kiosk.yaml
 *.pyc
 __pycache__/

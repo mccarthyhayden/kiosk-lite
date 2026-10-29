@@ -1,4 +1,4 @@
-"""Place the panes in config/kiosk.yaml and sign in only on the login page."""
+"""Place the panes from the home-directory layout and sign in only on the login page."""
 
 from __future__ import annotations
 
@@ -39,6 +39,16 @@ DATA_DIR = os.path.expanduser("~/.local/share/kiosk-lite")
 REPORT_PATH = os.path.join(STATE_DIR, "last-run.txt")
 LOG_PATH = os.path.join(STATE_DIR, "chromium.log")
 SESSION_PROFILE = os.path.join(DATA_DIR, "profiles", "_session")
+DEFAULT_CONFIG = os.path.expanduser("~/.config/kiosk-lite/kiosk.yaml")
+
+
+def config_path(explicit: str | None) -> str:
+    if explicit:
+        return explicit
+    override = os.environ.get("KIOSK_CONFIG")
+    if override:
+        return os.path.expanduser(override)
+    return DEFAULT_CONFIG
 
 
 @dataclass
@@ -57,11 +67,21 @@ class RunningPane:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Place the kiosk panes from a YAML file.")
-    parser.add_argument("--config", required=True)
+    parser.add_argument("--config", default=None)
     parser.add_argument("--place-only", action="store_true")
     args = parser.parse_args(argv)
+    path = config_path(args.config)
+    if not os.path.isfile(path):
+        if args.config or os.environ.get("KIOSK_CONFIG"):
+            print(f"config file is missing: {path}", flush=True)
+        else:
+            print(
+                "Copy config/kiosk.example.yaml to ~/.config/kiosk-lite/kiosk.yaml and edit the URLs.",
+                flush=True,
+            )
+        return 1
     try:
-        layout = load_layout(args.config)
+        layout = load_layout(path)
     except ImportError:
         print("python3-yaml is not installed", flush=True)
         return 1

@@ -1,6 +1,6 @@
 # Shop-floor layout
 
-Phase 1 showed two chromeless Chromium windows on Raspberry Pi OS Lite without a desktop. This directory now opens the four Odoo panes in `config/kiosk.yaml`. The test machine is a Raspberry Pi 4 with 4 GB of RAM and the 64-bit CLI image.
+Phase 1 showed two chromeless Chromium windows on Raspberry Pi OS Lite without a desktop. The layout program opens the panes listed in `~/.config/kiosk-lite/kiosk.yaml`. The test machine is a Raspberry Pi 4 with 4 GB of RAM and the 64-bit CLI image.
 
 Run the dependency check over SSH. Start Sway from the console on tty1. SSH cannot open the display.
 
@@ -65,6 +65,19 @@ Reboot. tty1 should start Sway: a black screen, no panel, and the pointer hidden
 
 If Sway exits immediately, read the message on the console. Do not install a desktop. If it could not open the DRM device, stop and switch this proof to labwc.
 
+## Layout
+
+The page URLs are not committed. On the machine that will show them:
+
+```sh
+mkdir -p ~/.config/kiosk-lite
+cp "$HOME/kiosk-lite/config/kiosk.example.yaml" ~/.config/kiosk-lite/kiosk.yaml
+```
+
+Edit that file and replace each `https://example.com/...` URL. `git pull` does not replace it. Set `KIOSK_CONFIG` to point the launcher at a different file.
+
+Panes on one host share a Wayland app id. The launcher starts one pane, waits for its window, and only then starts the next.
+
 ## Odoo password
 
 The password is not in git and should not be pasted into chat. On the Pi, as `kiosk-user`:
@@ -86,12 +99,12 @@ If the file is missing, the four panes still open and the report says the login 
 1. The program waits up to 90 seconds for the TV to finish the HDMI handshake, then requests 1920x1080 when that mode is listed.
 2. One Chromium window opens the first pane. If Odoo shows the login form, the password file is submitted. The browser is then closed.
 3. That profile is copied to one directory per pane. Two Chromium processes never share a directory.
-4. The panes start one at a time. Each waits up to 180 seconds for its own new Sway window. All four URLs are on `odoo.nxcmfg.com`, so the app id is the same for each and cannot be used to tell them apart.
-5. Each window is marked `kiosk-<pane-id>`, fullscreen is turned off, and the rectangle from `config/kiosk.yaml` is applied. Until that runs, a new page sits at Chromium's default size.
+4. The panes start one at a time. Each waits up to 180 seconds for its own new Sway window. Panes on one host get the same app id, so the host name cannot tell them apart.
+5. Each window is marked `kiosk-<pane-id>`, fullscreen is turned off, and the rectangle from `~/.config/kiosk-lite/kiosk.yaml` is applied. Until that runs, a new page sits at Chromium's default size.
 6. Panes with `hide_navbar: true` lose the Odoo web-client bar, the control panel under it (the "Dashboards" title, the New button, and the search bar), and the side list of dashboards. The meeting-notes page has none of those, so it looks the same. Set `hide_navbar: false` on a pane to keep them.
 7. `display.refresh_seconds` reloads each pane on that interval. 300 is 5 minutes. 0 turns refresh off. A pane can set its own `refresh_seconds`. The login page is not reloaded. The panes are staggered by 20 seconds so they do not all reload in the same moment.
 
-The starting rectangles are 640x540, 1280x540, 640x540, and 1280x540. Change them in the YAML after looking at the TV.
+The starting rectangles in the example are 640x540, 1280x540, 640x540, and 1280x540. Change them in `~/.config/kiosk-lite/kiosk.yaml` after looking at the TV.
 
 Chromium is not started with `--kiosk`, `--no-sandbox`, `--class`, `--window-position`, or `--window-size`. Wayland clients do not place themselves. `--password-store=basic` avoids a keyring prompt that Lite cannot answer.
 
@@ -121,6 +134,6 @@ To launch again in the same login session, exit Sway or remove `$XDG_RUNTIME_DIR
 
 - `check.sh` exits 0.
 - Four Odoo panes are visible at once, without an address bar or a desktop panel.
-- They sit on the rectangles in `config/kiosk.yaml`.
+- They sit on the rectangles in `~/.config/kiosk-lite/kiosk.yaml`.
 - Running `place.sh` again puts them back after a focus change.
 - `last-run.txt` records the output mode, the profile model, each pane, and `free -h`, and does not contain the password.

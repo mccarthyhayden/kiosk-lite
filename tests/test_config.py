@@ -7,13 +7,13 @@ import unittest
 from kiosk_lite.browser import copy_profile
 from kiosk_lite.cdp import _recv_text, _send_text
 from kiosk_lite.config import Login, load_layout, load_login
-from kiosk_lite.layout import RunningPane, _report
+from kiosk_lite.layout import RunningPane, _report, config_path
 from kiosk_lite.login import is_login_url
 from kiosk_lite.page import CHROME_SCRIPT, HIDE_NAVBAR_CSS
 
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-CONFIG = os.path.join(ROOT, "config", "kiosk.yaml")
+CONFIG = os.path.join(ROOT, "config", "kiosk.example.yaml")
 
 
 class LayoutFileTest(unittest.TestCase):
@@ -28,7 +28,7 @@ class LayoutFileTest(unittest.TestCase):
             [(0, 0, 640, 540), (640, 0, 1280, 540), (0, 540, 640, 540), (640, 540, 1280, 540)],
         )
         for pane in layout.panes:
-            self.assertTrue(pane.url.startswith("https://odoo.nxcmfg.com/"))
+            self.assertTrue(pane.url.startswith("https://example.com/"))
             self.assertTrue(pane.hide_navbar)
             self.assertEqual(pane.refresh_seconds, 300)
         self.assertEqual(layout.panes[0].refresh_seconds, 300)
@@ -36,6 +36,21 @@ class LayoutFileTest(unittest.TestCase):
             text = handle.read()
         self.assertNotIn("password:", text)
         self.assertNotIn("password=", text)
+        self.assertNotIn("nxcmfg", text)
+
+    def test_config_path_defaults_outside_the_repo(self) -> None:
+        previous = os.environ.pop("KIOSK_CONFIG", None)
+        try:
+            self.assertEqual(config_path(None), os.path.expanduser("~/.config/kiosk-lite/kiosk.yaml"))
+            self.assertEqual(config_path("/tmp/layout.yaml"), "/tmp/layout.yaml")
+            os.environ["KIOSK_CONFIG"] = "~/layouts/kiosk.yaml"
+            self.assertEqual(config_path(None), os.path.expanduser("~/layouts/kiosk.yaml"))
+            self.assertEqual(config_path("/tmp/layout.yaml"), "/tmp/layout.yaml")
+        finally:
+            if previous is None:
+                os.environ.pop("KIOSK_CONFIG", None)
+            else:
+                os.environ["KIOSK_CONFIG"] = previous
 
     def test_refresh_override_and_disable(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -46,13 +61,13 @@ class LayoutFileTest(unittest.TestCase):
                     "  refresh_seconds: 120\n"
                     "panes:\n"
                     "  - id: one\n"
-                    "    url: https://odoo.nxcmfg.com/web\n"
+                    "    url: https://example.com/web\n"
                     "    x: 0\n"
                     "    y: 0\n"
                     "    width: 10\n"
                     "    height: 10\n"
                     "  - id: two\n"
-                    "    url: https://odoo.nxcmfg.com/web\n"
+                    "    url: https://example.com/web\n"
                     "    x: 0\n"
                     "    y: 0\n"
                     "    width: 10\n"
@@ -68,7 +83,7 @@ class LayoutFileTest(unittest.TestCase):
                     "  refresh_seconds: -1\n"
                     "panes:\n"
                     "  - id: one\n"
-                    "    url: https://odoo.nxcmfg.com/web\n"
+                    "    url: https://example.com/web\n"
                     "    x: 0\n"
                     "    y: 0\n"
                     "    width: 10\n"
@@ -100,13 +115,11 @@ class LayoutFileTest(unittest.TestCase):
         self.assertIn("kiosk-lite-chrome", CHROME_SCRIPT)
 
     def test_login_urls(self) -> None:
-        self.assertTrue(is_login_url("https://odoo.nxcmfg.com/web/login"))
+        self.assertTrue(is_login_url("https://example.com/web/login"))
         self.assertTrue(
-            is_login_url("https://odoo.nxcmfg.com/web/login?redirect=https%3A%2F%2Fodoo.nxcmfg.com%2Fweb")
+            is_login_url("https://example.com/web/login?redirect=https%3A%2F%2Fexample.com%2Fweb")
         )
-        self.assertFalse(
-            is_login_url("https://odoo.nxcmfg.com/web#dashboard_id=25&cids=1&action=1498&menu_id=756")
-        )
+        self.assertFalse(is_login_url("https://example.com/lead-times"))
 
     def test_profile_copy_skips_locks(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -146,7 +159,7 @@ class LayoutFileTest(unittest.TestCase):
                     "lead_times",
                     9223,
                     10,
-                    "chrome-odoo.nxcmfg.com__-Default",
+                    "chrome-example.com__-Default",
                     100,
                     "0,0 640x540",
                 )

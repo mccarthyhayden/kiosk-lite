@@ -8,30 +8,31 @@ login:
   password_file: ~/.config/kiosk-lite/odoo-login
 panes:
   # hide_navbar removes the Odoo web-client bar. A page without that bar is unchanged.
+  # Replace the example.com URLs. Panes on one host share a Wayland app id.
   - id: lead_times
     hide_navbar: true
-    url: https://odoo.nxcmfg.com/web#dashboard_id=25&cids=1&action=1498&menu_id=756
+    url: https://example.com/lead-times
     x: 0
     y: 0
     width: 640
     height: 540
   - id: production_schedule
     hide_navbar: true
-    url: https://odoo.nxcmfg.com/web#action=1830&model=print.job&view_type=gantt&cids=1&menu_id=969
+    url: https://example.com/production-schedule
     x: 640
     y: 0
     width: 1280
     height: 540
   - id: meeting_notes
     hide_navbar: true
-    url: https://odoo.nxcmfg.com/meeting-notes/production-meeting/tv
+    url: https://example.com/meeting-notes
     x: 0
     y: 540
     width: 640
     height: 540
   - id: dashboard
     hide_navbar: true
-    url: https://odoo.nxcmfg.com/web#dashboard_id=24&cids=1&menu_id=756&action=1498
+    url: https://example.com/dashboard
     x: 640
     y: 540
     width: 1280

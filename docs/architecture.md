@@ -1,6 +1,6 @@
 # Architecture
 
-Phase 1 is signed off on a Raspberry Pi 4 (4 GB) running Raspberry Pi OS Lite 64-bit, the CLI-only image. Phase 2 keeps that Sway session and reads the four shop-floor panes from `config/kiosk.yaml`.
+Phase 1 is signed off on a Raspberry Pi 4 (4 GB) running Raspberry Pi OS Lite 64-bit, the CLI-only image. Phase 2 keeps that Sway session and reads the panes from `~/.config/kiosk-lite/kiosk.yaml`. The committed file is `config/kiosk.example.yaml`.
 
 The spec's later performance pass still refers to a Pi 5. This phase does not.
 
@@ -20,9 +20,9 @@ A debugging port is bound to `127.0.0.1` so the launcher can read the page addre
 
 **Window identity.** Different sites get different Wayland app ids. The signed-off boot recorded `chrome-example.com__-Default` and `chrome-example.org__-Default`. Those ids were enough to tell the two windows apart. Chromium ignores `--class` on Wayland, and the profile folder inside each user-data directory is still named `Default`.
 
-All four shop-floor URLs are on `odoo.nxcmfg.com`, so every pane gets the same app id, `chrome-odoo.nxcmfg.com__-Default`. Matching on the host name does not tell them apart. The launcher starts one pane, waits until one new Sway container exists, marks it, places it, and only then starts the next pane.
+When every pane is on one host, every pane gets the same app id, because the profile folder inside each user-data directory is still named `Default`. Matching on the host name does not tell them apart. The launcher starts one pane, waits until one new Sway container exists, marks it, places it, and only then starts the next pane.
 
-**Coordinates.** Logical pixels in `config/kiosk.yaml`. The starting layout is a 1920x1080 screen with a 640 px left column and a 1280 px right column, each row 540 px tall. When the display lists 1920x1080, the session requests that mode before Chromium starts. 4K is not part of this phase. A second connected output is ignored aside from the output name in the report.
+**Coordinates.** Logical pixels in the layout file. The example is a 1920x1080 screen with a 640 px left column and a 1280 px right column, each row 540 px tall. When the display lists 1920x1080, the session requests that mode before Chromium starts. 4K is not part of this phase. A second connected output is ignored aside from the output name in the report.
 
 **Dependencies.** `poc/bin/check.sh` is the preflight. The apt set is `sway`, `chromium` (or `chromium-browser`), `fonts-liberation`, `jq`, `dbus-user-session`, and `python3-yaml`, installed with `--no-install-recommends`. Xwayland is disabled in the Sway config. `seatd` is only a reaction to a seat error, not a default package.
 
@@ -48,7 +48,7 @@ Still out of this slice:
 - GPU flags and 4K measurement
 - labwc, unless Sway fails the tty1 checkpoint
 
-The pane list is `config/kiosk.yaml`. `display.refresh_seconds` reloads each pane on that interval (300 is 5 minutes; 0 disables it). A pane's own `refresh_seconds` overrides the display value. The Odoo password stays in the Pi-local file described above. An Odoo API key does not sign in these web pages.
+The pane list on the machine is `~/.config/kiosk-lite/kiosk.yaml`. `config/kiosk.example.yaml` is the committed sample. `display.refresh_seconds` reloads each pane on that interval (300 is 5 minutes; 0 disables it). A pane's own `refresh_seconds` overrides the display value. The Odoo password stays in the Pi-local file described above. An Odoo API key does not sign in these web pages.
 
 ## Hardware results
 
