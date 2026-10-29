@@ -6,12 +6,14 @@ from kiosk_lite.cdp import Cdp, CdpError
 
 # The Odoo web client draws a navbar and a control panel on /web. The control
 # panel is the "Dashboards" title, and on the gantt it is the New button and
-# search bar. A standalone page such as the meeting-notes TV view has none of
+# search bar. The spreadsheet dashboard also draws a side list of every
+# dashboard. A standalone page such as the meeting-notes TV view has none of
 # these elements, so it is unchanged.
 HIDE_NAVBAR_CSS = """
 .o_navbar,
 .o_main_navbar,
-.o_control_panel {
+.o_control_panel,
+.o_spreadsheet_dashboard_search_panel {
   display: none !important;
 }
 .o_web_client,

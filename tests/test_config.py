@@ -95,6 +95,7 @@ class LayoutFileTest(unittest.TestCase):
         self.assertIn(".o_main_navbar", HIDE_NAVBAR_CSS)
         self.assertIn(".o_navbar", HIDE_NAVBAR_CSS)
         self.assertIn(".o_control_panel", HIDE_NAVBAR_CSS)
+        self.assertIn(".o_spreadsheet_dashboard_search_panel", HIDE_NAVBAR_CSS)
         self.assertNotIn("password", CHROME_SCRIPT)
         self.assertIn("kiosk-lite-chrome", CHROME_SCRIPT)
 
